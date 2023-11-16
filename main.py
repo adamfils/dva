@@ -1,11 +1,13 @@
 # -*-Encoding: utf-8 -*-
 import argparse
-import torch
-import numpy as np
-import random
-from exp.exp_model import Exp_Model
 import os
+import random
+
+import numpy as np
 import pandas as pd
+import torch
+
+from exp.exp_model import Exp_Model
 
 fix_seed = 100
 random.seed(fix_seed)
@@ -67,33 +69,41 @@ args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
 if args.prediction_length is None:
     args.prediction_length = args.sequence_length
 
-print('Args in experiment:')
-print(args)
+# print('Args in experiment:')
+# print(args)
 
-Exp = Exp_Model
-results = pd.DataFrame(columns=['Ticker', 'MSE', 'StdDev'])
-train_setting = 'tp{}_sl{}'.format(args.root_path.split(os.sep)[-1], args.sequence_length)
 
-for idx, file in enumerate(os.listdir(args.root_path)): # Iterate through all tickers
-    print('\n\nRunning on file {} ({}/{})...'.format(file, idx+1, len(os.listdir(args.root_path))))
-    args.data_path = file
-    ticker = os.path.splitext(file)[0]
-    all_mse = []
+def main():
+    Exp = Exp_Model
+    results = pd.DataFrame(columns=['Ticker', 'MSE', 'StdDev'])
+    train_setting = 'tp{}_sl{}'.format(args.root_path.split(os.sep)[-1], args.sequence_length)
 
-    for ii in range(0, args.itr):
-        setting = args.data_path + '_' + train_setting
-        exp = Exp(args)  # single experiment
-        print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-        exp.train(setting)
-        print('>>>>>>>start testing : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-        mse = exp.test(setting)
-        all_mse.append(mse)
-        torch.cuda.empty_cache()
+    for idx, file in enumerate(os.listdir(args.root_path)):  # Iterate through all tickers
+        print('\n\nRunning on file {} ({}/{})...'.format(file, idx + 1, len(os.listdir(args.root_path))))
+        args.data_path = file
+        ticker = os.path.splitext(file)[0]
+        all_mse = []
 
-    results = results.append({'Ticker': ticker, 'MSE': np.mean(np.array(all_mse)), 'StdDev': np.std(np.array(all_mse))}, ignore_index=True)
+        for ii in range(0, args.itr):
+            setting = args.data_path + '_' + train_setting
+            exp = Exp(args)  # single experiment
+            print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
+            exp.train(setting)
+            print('>>>>>>>start testing : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
+            mse = exp.test(setting)
+            all_mse.append(mse)
+            torch.cuda.empty_cache()
 
-folder_path = './results/'
-if not os.path.exists(folder_path):
-    os.makedirs(folder_path)
-results.to_csv(folder_path + train_setting + '.csv', index=False)
-print(results)
+        results = results.append(
+            {'Ticker': ticker, 'MSE': np.mean(np.array(all_mse)), 'StdDev': np.std(np.array(all_mse))},
+            ignore_index=True)
+
+    folder_path = './results/'
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    results.to_csv(folder_path + train_setting + '.csv', index=False)
+    print(results)
+
+
+if __name__ == '__main__':
+    main()

@@ -1,4 +1,6 @@
 # -*-Encoding: utf-8 -*-
+from tqdm import tqdm
+
 from data_load.data_loader import Dataset_Custom
 from model.model import diffusion_generate, denoise_net, pred_net
 from torch.optim.lr_scheduler import OneCycleLR, StepLR
@@ -118,7 +120,8 @@ class Exp_Model(object):
             all_loss = []
             self.denoise_net.train()
             epoch_time = time.time()
-            for i, (batch_x, batch_y, x_mark, y_mark) in enumerate(train_loader):
+            epoch_progress = tqdm(enumerate(train_loader), total=len(train_loader), desc=f"Epoch {epoch + 1}/{self.args.train_epochs}")
+            for i, (batch_x, batch_y, x_mark, y_mark) in epoch_progress:
                 t = torch.randint(0, self.diff_step, (self.args.batch_size,)).long().to(self.device)
                 batch_x = batch_x.float().to(self.device)
                 x_mark = x_mark.float().to(self.device)
@@ -136,8 +139,12 @@ class Exp_Model(object):
                 all_loss.append(loss.item())
                 loss.backward()
                 denoise_optim.step()
-                if i%40==0:
+                if i % 40 == 0:
                     print(loss)
+                # Update tqdm bar with current loss information
+                epoch_progress.set_postfix(loss=loss.item(), mse_loss=mse_loss.item(), kl_loss=kl_loss.item(),
+                                           dsm_loss=dsm_loss.item())
+
             all_loss = np.average(all_loss)
             train.append(all_loss)
             kl = np.average(kl)
